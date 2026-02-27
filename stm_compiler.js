@@ -94,6 +94,15 @@ class Compiler {
             this.errors.push('Немає блоку "Старт"!');
             return null;
         }
+        /* Debug: показати ланцюжок блоків */
+        let dbgBlock = starts[0].getNextBlock();
+        const dbgChain = [];
+        while (dbgBlock) {
+            dbgChain.push(dbgBlock.type);
+            dbgBlock = dbgBlock.getNextBlock();
+        }
+        _log('📋 Блоки: ' + (dbgChain.length ? dbgChain.join(' → ') : '(немає!)'), 'info');
+
         this.compileStmt(starts[0].getNextBlock());
         this.emit(OP.END);
         return new Uint8Array(this.buf);
@@ -262,8 +271,34 @@ class Compiler {
                 break;
             }
 
+            /* ---- Кастомні блоки що відрізняються від Blockly стандарту ---- */
+            case 'loop_forever': {
+                const loopStart = this.pc();
+                this.compileStmt(block.getInputTargetBlock('DO'));
+                this.emit(OP.LOOP_END);
+                this.emit16(loopStart);
+                return; /* після forever немає наступних блоків */
+            }
+
+            case 'loop_repeat_pause': {
+                const count = Math.max(1, Math.round(
+                    this.staticNum(block.getInputTargetBlock('TIMES'), 1)
+                ));
+                const pause = this.staticNum(block.getInputTargetBlock('PAUSE'), 0);
+                this.emit(OP.REPEAT_START);
+                this.emit16(count);
+                this.compileStmt(block.getInputTargetBlock('DO'));
+                if (pause > 0) {
+                    this.emit(OP.WAIT);
+                    this.emitMs(pause);
+                }
+                this.emit(OP.REPEAT_END);
+                break;
+            }
+
             default:
-                /* Невідомий блок — пропустити */
+                /* Невідомий блок — логувати і пропустити */
+                _log('⚠️ Компілятор: невідомий блок "' + block.type + '" — пропущено', 'err');
                 break;
         }
 
