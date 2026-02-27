@@ -2517,6 +2517,12 @@ function validateWorkspace() {
         window.sendDrivePacket = sendDrivePacket;
         window.isConnected = isConnected;
         window.characteristic = characteristic || null;
+
+        /* sendCarPacket — використовується в генерованому Scratch коді.
+           L/R → мотори A+C = ліві, B+D = праві */
+        window.sendCarPacket = async function(l, r) {
+            await sendDrivePacket(l, r, l, r);
+        };
     </script>
      <script src="blocks_car_fixed3.js"></script>
      <script src="stm_compiler.js"></script>
